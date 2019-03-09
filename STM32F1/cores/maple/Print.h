@@ -27,6 +27,10 @@
 #include "WString.h"
 #include "Printable.h"
 
+#if defined(STM32F103_USE_LEAN_PRINTF)
+#include <stdarg.h>
+#endif
+
 enum {
     BIN  = 2,
     OCT  = 8,
@@ -71,6 +75,9 @@ public:
 // Roger Clark. Work in progress to add printf support
 	int printf(const char * format, ...);
 #endif
+#if defined(STM32F103_USE_LEAN_PRINTF)
+	size_t printf(const char * format, ...);
+#endif
     Print() : write_error(0) {}
 
     int getWriteError() { return write_error; }
@@ -83,6 +90,9 @@ private:
 	int write_error;
     size_t printNumber(unsigned long long, uint8);
     size_t printFloat(double, uint8);
+#if defined(STM32F103_USE_LEAN_PRINTF)
+    size_t printDigit(unsigned char n, bool lower_case);
+#endif
 };
 
 #endif
