@@ -36,11 +36,9 @@
 #include "timer_private.h"
 
 static void disable_channel(timer_dev *dev, uint8 channel);
-static void pwm_mode(timer_dev *dev, uint8 channel);
-static void output_compare_mode(timer_dev *dev, uint8 channel);
-static void encoder_mode(timer_dev *dev, uint8 channel) ;//CARLOS
+static void encoder_mode(timer_dev *dev); //CARLOS
 
-static inline void enable_irq(timer_dev *dev, timer_interrupt_id iid);
+static void enable_irq(timer_dev *dev, timer_interrupt_id iid);
 
 /*
  * Devices
@@ -48,75 +46,37 @@ static inline void enable_irq(timer_dev *dev, timer_interrupt_id iid);
  * Defer to the timer_private API for declaring these.
  */
 
-#if STM32_HAVE_TIMER(1)
-timer_dev timer1 = ADVANCED_TIMER(1);
 /** Timer 1 device (advanced) */
-timer_dev *const TIMER1 = &timer1;
-#endif
-#if STM32_HAVE_TIMER(2)
-timer_dev timer2 = GENERAL_TIMER(2);
+timer_dev timer1 = ADVANCED_TIMER(1);
 /** Timer 2 device (general-purpose) */
-timer_dev *const TIMER2 = &timer2;
-#endif
-#if STM32_HAVE_TIMER(3)
-timer_dev timer3 = GENERAL_TIMER(3);
+timer_dev timer2 = GENERAL_TIMER(2);
 /** Timer 3 device (general-purpose) */
-timer_dev *const TIMER3 = &timer3;
-#endif
-#if STM32_HAVE_TIMER(4)
-timer_dev timer4 = GENERAL_TIMER(4);
+timer_dev timer3 = GENERAL_TIMER(3);
 /** Timer 4 device (general-purpose) */
-timer_dev *const TIMER4 = &timer4;
-#endif
-#if STM32_HAVE_TIMER(5)
-timer_dev timer5 = GENERAL_TIMER(5);
+timer_dev timer4 = GENERAL_TIMER(4);
 /** Timer 5 device (general-purpose) */
-timer_dev *const TIMER5 = &timer5;
-#endif
-#if STM32_HAVE_TIMER(6)
-timer_dev timer6 = BASIC_TIMER(6);
+timer_dev timer5 = GENERAL_TIMER(5);
+#if defined(STM32_HIGH_DENSITY) || defined(STM32_XL_DENSITY)
 /** Timer 6 device (basic) */
-timer_dev *const TIMER6 = &timer6;
-#endif
-#if STM32_HAVE_TIMER(7)
-timer_dev timer7 = BASIC_TIMER(7);
+timer_dev timer6 = BASIC_TIMER(6);
 /** Timer 7 device (basic) */
-timer_dev *const TIMER7 = &timer7;
-#endif
-#if STM32_HAVE_TIMER(8)
-timer_dev timer8 = ADVANCED_TIMER(8);
+timer_dev timer7 = BASIC_TIMER(7);
 /** Timer 8 device (advanced) */
-timer_dev *const TIMER8 = &timer8;
+timer_dev timer8 = ADVANCED_TIMER(8);
 #endif
-#if STM32_HAVE_TIMER(9)
-timer_dev timer9 = RESTRICTED_GENERAL_TIMER(9, TIMER_DIER_TIE_BIT);
+#if defined(STM32_XL_DENSITY)
 /** Timer 9 device (general-purpose) */
-timer_dev *const TIMER9 = &timer9;
-#endif
-#if STM32_HAVE_TIMER(10)
-timer_dev timer10 = RESTRICTED_GENERAL_TIMER(10, TIMER_DIER_CC1IE_BIT);
+timer_dev timer9 = RESTRICTED_GENERAL_TIMER(9, TIMER_DIER_TIE_BIT);
 /** Timer 10 device (general-purpose) */
-timer_dev *const TIMER10 = &timer10;
-#endif
-#if STM32_HAVE_TIMER(11)
-timer_dev timer11 = RESTRICTED_GENERAL_TIMER(11, TIMER_DIER_CC1IE_BIT);
+timer_dev timer10 = RESTRICTED_GENERAL_TIMER(10, TIMER_DIER_CC1IE_BIT);
 /** Timer 11 device (general-purpose) */
-timer_dev *const TIMER11 = &timer11;
-#endif
-#if STM32_HAVE_TIMER(12)
-timer_dev timer12 = RESTRICTED_GENERAL_TIMER(12, TIMER_DIER_TIE_BIT);
+timer_dev timer11 = RESTRICTED_GENERAL_TIMER(11, TIMER_DIER_CC1IE_BIT);
 /** Timer 12 device (general-purpose) */
-timer_dev *const TIMER12 = &timer12;
-#endif
-#if STM32_HAVE_TIMER(13)
-timer_dev timer13 = RESTRICTED_GENERAL_TIMER(13, TIMER_DIER_CC1IE_BIT);
+timer_dev timer12 = RESTRICTED_GENERAL_TIMER(12, TIMER_DIER_TIE_BIT);
 /** Timer 13 device (general-purpose) */
-timer_dev *const TIMER13 = &timer13;
-#endif
-#if STM32_HAVE_TIMER(14)
-timer_dev timer14 = RESTRICTED_GENERAL_TIMER(14, TIMER_DIER_CC1IE_BIT);
+timer_dev timer13 = RESTRICTED_GENERAL_TIMER(13, TIMER_DIER_CC1IE_BIT);
 /** Timer 14 device (general-purpose) */
-timer_dev *const TIMER14 = &timer14;
+timer_dev timer14 = RESTRICTED_GENERAL_TIMER(14, TIMER_DIER_CC1IE_BIT);
 #endif
 
 /*
@@ -127,47 +87,24 @@ timer_dev *const TIMER14 = &timer14;
  * @brief Call a function on timer devices.
  * @param fn Function to call on each timer device.
  */
-void timer_foreach(void (*fn)(timer_dev*)) {
-#if STM32_HAVE_TIMER(1)
+void timer_foreach(void (*fn)(timer_dev*))
+{
     fn(TIMER1);
-#endif
-#if STM32_HAVE_TIMER(2)
     fn(TIMER2);
-#endif
-#if STM32_HAVE_TIMER(3)
     fn(TIMER3);
-#endif
-#if STM32_HAVE_TIMER(4)
     fn(TIMER4);
-#endif
-#if STM32_HAVE_TIMER(5)
+#if defined(STM32_HIGH_DENSITY) || defined(STM32_XL_DENSITY)
     fn(TIMER5);
-#endif
-#if STM32_HAVE_TIMER(6)
     fn(TIMER6);
-#endif
-#if STM32_HAVE_TIMER(7)
     fn(TIMER7);
-#endif
-#if STM32_HAVE_TIMER(8)
     fn(TIMER8);
 #endif
-#if STM32_HAVE_TIMER(9)
+#if defined(STM32_XL_DENSITY)
     fn(TIMER9);
-#endif
-#if STM32_HAVE_TIMER(10)
     fn(TIMER10);
-#endif
-#if STM32_HAVE_TIMER(11)
     fn(TIMER11);
-#endif
-#if STM32_HAVE_TIMER(12)
     fn(TIMER12);
-#endif
-#if STM32_HAVE_TIMER(13)
     fn(TIMER13);
-#endif
-#if STM32_HAVE_TIMER(14)
     fn(TIMER14);
 #endif
 }
@@ -213,31 +150,30 @@ void timer_disable(timer_dev *dev) {
  * @param channel Relevant channel
  * @param mode New timer mode for channel
  */
-void timer_set_mode(timer_dev *dev, uint8 channel, timer_mode mode) {
-    ASSERT_FAULT(channel > 0 && channel <= 4);
+void timer_set_mode(timer_dev *dev, uint8 channel, timer_mode mode)
+{
+    if ( channel==0 || channel>4 ) return;
 
     /* TODO decide about the basic timers */
-    ASSERT(dev->type != TIMER_BASIC);
-    if (dev->type == TIMER_BASIC)
-        return;
+    if (dev->type == TIMER_BASIC) return;
 
     switch (mode) {
     case TIMER_DISABLED:
         disable_channel(dev, channel);
         break;
     case TIMER_PWM:
-        pwm_mode(dev, channel);
+        timer_disable_irq(dev, channel);
+        timer_set_cc_mode(dev, channel, TIMER_OC_MODE_PWM_1, TIMER_OC_PE);
         break;
     case TIMER_OUTPUT_COMPARE:
-        output_compare_mode(dev, channel);
+        timer_set_cc_mode(dev, channel, TIMER_OC_MODE_ACTIVE_ON_MATCH, 0);
         break;
-    //added by CARLOS. 
-    case TIMER_ENCODER: 
-        encoder_mode(dev, channel); //find a way to pass all the needed stuff on the 8bit var
+    case TIMER_ENCODER: //added by CARLOS.
+        encoder_mode(dev); //find a way to pass all the needed stuff on the 8bit var
         break;
-    case TIMER_INPUT_CAPTURE:// code from @Cesco
-        input_capture_mode(dev, channel, TIMER_IC_INPUT_DEFAULT);
-        break;		
+    case TIMER_INPUT_CAPTURE:
+		timer_set_cc_mode(dev, channel, 0, TIMER_IC_INPUT_DEFAULT);
+        break;
     }
 }
 
@@ -311,25 +247,19 @@ uint8 get_direction(timer_dev *dev){
 /*
  * Utilities
  */
-
 static void disable_channel(timer_dev *dev, uint8 channel) {
     timer_detach_interrupt(dev, channel);
     timer_cc_disable(dev, channel);
 }
 
-static void pwm_mode(timer_dev *dev, uint8 channel) {
-    timer_disable_irq(dev, channel);
-    timer_oc_set_mode(dev, channel, TIMER_OC_MODE_PWM_1, TIMER_OC_PE);
-    timer_cc_enable(dev, channel);
-}
-
-static void output_compare_mode(timer_dev *dev, uint8 channel) {
-    timer_oc_set_mode(dev, channel, TIMER_OC_MODE_ACTIVE_ON_MATCH, 0);
+void timer_set_cc_mode(timer_dev *dev, timer_channel channel, uint8 cc_mode, uint8 flags)
+{
+    timer_oc_set_mode(dev, channel, (timer_oc_mode)cc_mode, flags);
     timer_cc_enable(dev, channel);
 }
 
 //added by CARLOS.
-static void encoder_mode(timer_dev *dev, uint8 channel __attribute__((unused))) {
+static void encoder_mode(timer_dev *dev) {
     
     //prescaler. 
     //(dev->regs).gen->PSC = 1;
@@ -351,21 +281,6 @@ static void encoder_mode(timer_dev *dev, uint8 channel __attribute__((unused))) 
     timer_resume(dev);
 }
 
-void input_capture_mode(timer_dev *dev, uint8 channel, timer_ic_input_select input) {
-    timer_oc_set_mode(dev, channel, 0, input);
-    timer_cc_enable(dev, channel);
-}
-
-static void enable_adv_irq(timer_dev *dev, timer_interrupt_id id);
-static void enable_bas_gen_irq(timer_dev *dev);
-
-static inline void enable_irq(timer_dev *dev, timer_interrupt_id iid) {
-    if (dev->type == TIMER_ADVANCED) {
-        enable_adv_irq(dev, iid);
-    } else {
-        enable_bas_gen_irq(dev);
-    }
-}
 
 /* Advanced control timers have several IRQ lines corresponding to
  * different timer interrupts.
@@ -455,6 +370,15 @@ static void enable_bas_gen_irq(timer_dev *dev) {
     nvic_irq_enable(irq_num);
 }
 
+static void enable_irq(timer_dev *dev, timer_interrupt_id iid)
+{
+    if (dev->type == TIMER_ADVANCED) {
+        enable_adv_irq(dev, iid);
+    } else {
+        enable_bas_gen_irq(dev);
+    }
+}
+
 
 /* Note.
  *
@@ -480,21 +404,21 @@ static void enable_bas_gen_irq(timer_dev *dev) {
 
 __weak void __irq_tim1_brk(void) {
     dispatch_adv_brk(TIMER1);
-#if STM32_HAVE_TIMER(9)
+#if defined(STM32_XL_DENSITY)
     dispatch_tim_9_12(TIMER9);
 #endif
 }
 
 __weak void __irq_tim1_up(void) {
     dispatch_adv_up(TIMER1);
-#if STM32_HAVE_TIMER(10)
+#if defined(STM32_XL_DENSITY)
     dispatch_tim_10_11_13_14(TIMER10);
 #endif
 }
 
 __weak void __irq_tim1_trg_com(void) {
     dispatch_adv_trg_com(TIMER1);
-#if STM32_HAVE_TIMER(11)
+#if defined(STM32_XL_DENSITY)
     dispatch_tim_10_11_13_14(TIMER11);
 #endif
 }
@@ -515,11 +439,11 @@ __weak void __irq_tim4(void) {
     dispatch_general(TIMER4);
 }
 
-#if defined(STM32_HIGH_DENSITY) || defined(STM32_XL_DENSITY)
 __weak void __irq_tim5(void) {
     dispatch_general(TIMER5);
 }
 
+#if defined(STM32_HIGH_DENSITY) || defined(STM32_XL_DENSITY)
 __weak void __irq_tim6(void) {
     dispatch_basic(TIMER6);
 }
@@ -530,21 +454,21 @@ __weak void __irq_tim7(void) {
 
 __weak void __irq_tim8_brk(void) {
     dispatch_adv_brk(TIMER8);
-#if STM32_HAVE_TIMER(12)
+#if defined(STM32_XL_DENSITY)
     dispatch_tim_9_12(TIMER12);
 #endif
 }
 
 __weak void __irq_tim8_up(void) {
     dispatch_adv_up(TIMER8);
-#if STM32_HAVE_TIMER(13)
+#if defined(STM32_XL_DENSITY)
     dispatch_tim_10_11_13_14(TIMER13);
 #endif
 }
 
 __weak void __irq_tim8_trg_com(void) {
     dispatch_adv_trg_com(TIMER8);
-#if STM32_HAVE_TIMER(14)
+#if defined(STM32_XL_DENSITY)
     dispatch_tim_10_11_13_14(TIMER14);
 #endif
 }

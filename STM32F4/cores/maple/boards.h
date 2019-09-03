@@ -39,7 +39,8 @@
 #ifndef _BOARDS_H_
 #define _BOARDS_H_
 
-#include <wirish_types.h>
+
+#include <libmaple/libmaple_types.h>
 #include <stdbool.h>
 
 /* Set of all possible pin names; not all boards have all these (note
@@ -59,11 +60,6 @@ enum {
 #endif // not available on LQFP100 package
 };
 
-/**
- * @brief Maps each Maple pin to a corresponding stm32_pin_info.
- * @see stm32_pin_info
- */
-extern const stm32_pin_info PIN_MAP[];
 
 /**
  * @brief Pins capable of PWM output.
@@ -125,10 +121,12 @@ extern bool boardUsesPin(uint8 pin);
 #include "aeroquad32.h"
 #elif defined(BOARD_aeroquad32mini)
 #include "aeroquad32mini.h"
-#elif defined(BOARD_discovery_f4)
+#elif defined(VARIANT_discovery_f407)
 #include "discovery_f4.h"
-#elif defined(BOARD_generic_f407v)
+#elif defined(VARIANT_generic_f407v)
 #include "generic_f407v.h"
+#elif defined(VARIANT_arch_max)
+#include "arch_max.h"
 #elif defined(BOARD_freeflight)
 #include "freeflight.h"
 #else
@@ -156,5 +154,6 @@ extern bool boardUsesPin(uint8 pin);
 #ifndef BOARD_BUTTON_PRESSED_LEVEL
 #define BOARD_BUTTON_PRESSED_LEVEL      HIGH
 #endif
+
 
 #endif

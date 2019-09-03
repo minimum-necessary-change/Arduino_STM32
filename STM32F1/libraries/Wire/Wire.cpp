@@ -39,17 +39,16 @@
 #include "Wire.h"
 
 uint8 TwoWire::process(uint8 stop) {
+	(void)stop;
     int8 res = i2c_master_xfer(sel_hard, &itc_msg, 1, 0);
     if (res == I2C_ERROR_PROTOCOL) {
         if (sel_hard->error_flags & I2C_SR1_AF) { /* NACK */
-            res = (sel_hard->error_flags & I2C_SR1_ADDR ? ENACKADDR : 
-                                                          ENACKTRNS);
+            res = (sel_hard->error_flags & (I2C_SR1_ADDR|I2C_SR1_ADD10)) ? ENACKADDR : ENACKTRNS;
         } else if (sel_hard->error_flags & I2C_SR1_OVR) { /* Over/Underrun */
             res = EDATA;
         } else { /* Bus or Arbitration error */
             res = EOTHER;
         }
-        i2c_disable(sel_hard);
         i2c_master_enable(sel_hard, dev_flags);
     }
     return res;
@@ -77,6 +76,7 @@ TwoWire::~TwoWire() {
 }
 
 void TwoWire::begin(uint8 self_addr) {
+	(void)self_addr;
     i2c_master_enable(sel_hard, dev_flags);
 }
 
@@ -98,7 +98,6 @@ void TwoWire::setClock(uint32_t frequencyHz)
 			break;
 	}
 	if (sel_hard->regs->CR1 & I2C_CR1_PE){
-	    i2c_disable(sel_hard);
 	    i2c_master_enable(sel_hard, dev_flags);
 	}
 }

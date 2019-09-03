@@ -34,8 +34,7 @@
 #include "stdint.h"
 
 #include <libmaple/nvic.h>
-#include <libmaple/usb_cdcacm.h>
-#include <libmaple/usb.h>
+#include <libmaple/usb/usb.h>
 #include <libmaple/iwdg.h>
 #include <libmaple/bkp.h>
 #include "wirish.h"
@@ -45,8 +44,8 @@
  */
 
 #if BOARD_HAVE_SERIALUSB
-static void rxHook(unsigned, void*);
-static void ifaceSetupHook(unsigned, void*);
+static void rxHook(unsigned);
+static void ifaceSetupHook(unsigned);
 #endif
 
 /*
@@ -65,21 +64,21 @@ USBSerial::USBSerial(void) {
 #endif
 }
 
-void USBSerial::begin(void) {
-	
+void USBSerial::begin(void)
+{
 #if BOARD_HAVE_SERIALUSB
     if (_hasBegun)
         return;
     _hasBegun = true;
 
-    usb_cdcacm_enable(BOARD_USB_DISC_DEV, (uint8_t)BOARD_USB_DISC_BIT);
+    usb_cdcacm_enable();
     usb_cdcacm_set_hooks(USB_CDCACM_HOOK_RX, rxHook);
     usb_cdcacm_set_hooks(USB_CDCACM_HOOK_IFACE_SETUP, ifaceSetupHook);
 #endif
 }
 
 //Roger Clark. Two new begin functions has been added so that normal Arduino Sketches that use Serial.begin(xxx) will compile.
-void USBSerial::begin(unsigned long ignoreBaud) 
+void USBSerial::begin(unsigned long ignoreBaud)
 {
 volatile unsigned long removeCompilerWarningsIgnoreBaud=ignoreBaud;
 
@@ -96,17 +95,16 @@ volatile uint8_t removeCompilerWarningsIgnore=ignore;
 	begin();
 }
 
-void USBSerial::end(void) {
+void USBSerial::end(void)
+{
 #if BOARD_HAVE_SERIALUSB
-    usb_cdcacm_disable(BOARD_USB_DISC_DEV, (uint8_t)BOARD_USB_DISC_BIT);
+    usb_cdcacm_disable();
     usb_cdcacm_remove_hooks(USB_CDCACM_HOOK_RX | USB_CDCACM_HOOK_IFACE_SETUP);
 	_hasBegun = false;
 #endif
-
 }
 
 size_t USBSerial::write(uint8 ch) {
-
     return this->write(&ch, 1);
 }
 
@@ -117,7 +115,7 @@ size_t USBSerial::write(const char *str) {
 size_t USBSerial::write(const uint8 *buf, uint32 len)
 {
 #ifdef USB_SERIAL_REQUIRE_DTR
- if (!(bool) *this || !buf) {
+    if (!(bool) *this || !buf) {
         return 0;
     }
 #else	
@@ -139,10 +137,6 @@ size_t USBSerial::write(const uint8 *buf, uint32 len)
 	return txed;
 }
 
-int USBSerial::available(void) {
-    return usb_cdcacm_data_available();
-}
-
 int USBSerial::peek(void)
 {
     uint8 b;
@@ -155,8 +149,6 @@ int USBSerial::peek(void)
 		return -1;
 	}
 }
-
-int USBSerial::availableForWrite(void) { return usb_cdcacm_tx_available(); }
 
 void USBSerial::flush(void)
 {
@@ -194,7 +186,6 @@ size_t USBSerial::readBytes(char *buf, const size_t& len)
 /* Blocks forever until 1 byte is received */
 int USBSerial::read(void) {
     uint8 b;
-	
 	if (usb_cdcacm_rx(&b, 1)==0)
 	{
 		return -1;
@@ -252,11 +243,10 @@ enum reset_state_t {
 
 static reset_state_t reset_state = DTR_UNSET;
 
-static void ifaceSetupHook(unsigned hook __attribute__((unused)), void *requestvp) {
-    uint8 request = *(uint8*)requestvp;
-
+static void ifaceSetupHook(unsigned requestvp)
+{
     // Ignore requests we're not interested in.
-    if (request != USB_CDCACM_SET_CONTROL_LINE_STATE) {
+    if (requestvp != USB_CDCACM_SET_CONTROL_LINE_STATE) {
         return;
     }
 
@@ -294,23 +284,26 @@ static void wait_reset(void) {
 #define STACK_TOP 0x20000800
 #define EXC_RETURN 0xFFFFFFF9
 #define DEFAULT_CPSR 0x61000000
-static void rxHook(unsigned hook __attribute__((unused)), void *ignored __attribute__((unused))) {
 static const uint8 magic[4] = {'1', 'E', 'A', 'F'};	
+static void rxHook(unsigned ignore)
+{
+	(void)ignore;
     /* FIXME this is mad buggy; we need a new reset sequence. E.g. NAK
      * after each RX means you can't reset if any bytes are waiting. */
     if (reset_state == DTR_NEGEDGE) {
-
-        if (usb_cdcacm_data_available() >= 4) 
-		{
-            uint8 chkBuf[4];
+        int len = usb_cdcacm_data_available();
+        if (len >= 4) 
+        {
+            uint8 chkBuf[256];
 
             // Peek at the waiting bytes, looking for reset sequence,
             // bailing on mismatch.
-            usb_cdcacm_peek_ex(chkBuf, usb_cdcacm_data_available() - 4, 4);
+            usb_cdcacm_peek(chkBuf, len);
+
             for (unsigned i = 0; i < sizeof(magic); i++) {
-                if (chkBuf[i] != magic[i]) 
-				{
-			        reset_state = DTR_LOW;
+                if (chkBuf[len + i - 4] != magic[i]) 
+                {
+                    reset_state = DTR_LOW;
                     return;
                 }
             }
@@ -319,11 +312,11 @@ static const uint8 magic[4] = {'1', 'E', 'A', 'F'};
             // The magic reset sequence is "1EAF".
             // Got the magic sequence -> reset, presumably into the bootloader.
             // Return address is wait_reset, but we must set the thumb bit.
-			bkp_init();
-			bkp_enable_writes();
-			bkp_write(10, 0x424C);
-			bkp_disable_writes();
-						
+            bkp_init();
+            bkp_enable_writes();
+            bkp_write(10, 0x424C);
+            bkp_disable_writes();
+
             uintptr_t target = (uintptr_t)wait_reset | 0x1;
             asm volatile("mov r0, %[stack_top]      \n\t" // Reset stack
                          "mov sp, r0                \n\t"

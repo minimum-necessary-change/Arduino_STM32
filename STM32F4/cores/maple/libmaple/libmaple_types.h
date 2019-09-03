@@ -48,9 +48,12 @@ typedef long long int64;
 typedef void (*voidFuncPtr)(void);
 
 #define __IO volatile
-#define __IO volatile
+
 #ifndef __attr_flash
   #define __attr_flash __attribute__((section (".USER_FLASH")))
+#endif
+#ifndef __attr_ccmram
+  #define __attr_ccmram __attribute__((section (".ccmdata")))
 #endif
 #ifndef __always_inline
   #define __always_inline inline __attribute__((always_inline))
@@ -58,6 +61,12 @@ typedef void (*voidFuncPtr)(void);
 #ifndef NULL
   #define NULL 0
 #endif
+
+// Variable attributes, instructs the linker to place the marked
+// variable in FLASH or CCRAM instead of RAM.
+#define __FLASH__ __attr_flash
+#define __CCMRAM__ __attr_ccmram
+
 
 #endif
 

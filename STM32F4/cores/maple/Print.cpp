@@ -46,9 +46,10 @@
  * Public methods
  */
 
-size_t Print::write(const char *str) {
-    if (str == NULL) return 0;
-    return write((const uint8_t *)str, strlen(str));
+size_t Print::write(const char *str)
+{
+	if (str == NULL) return 0;
+	return write((const uint8_t *)str, strlen(str));
 }
 
 size_t Print::write(const void *buffer, uint32 size) {
